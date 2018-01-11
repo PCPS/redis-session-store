@@ -64,10 +64,15 @@ class RedisSessionStore < ActionDispatch::Session::AbstractStore
   def session_exists?(env)
     value = current_session_id(env)
 
-    !!(
-      value && !value.empty? &&
-      redis.exists(prefixed(value))
-    )
+    if redis.is_a?(ConnectionPool)
+      redis.with do |conn|
+        !!(value && !value.empty? && conn.exists(prefixed(value)))
+      end
+    else
+      !!(value && !value.empty? && redis.exists(prefixed(value)))
+    end
+
+
   rescue Errno::ECONNREFUSED, Redis::CannotConnectError => e
     on_redis_down.call(e, env, value) if on_redis_down
 
@@ -97,10 +102,18 @@ class RedisSessionStore < ActionDispatch::Session::AbstractStore
     on_redis_down.call(e, env, sid) if on_redis_down
     [generate_sid, {}]
   end
+
   alias find_session get_session
 
   def load_session_from_redis(sid)
-    data = redis.get(prefixed(sid))
+    data = nil
+    if redis.is_a?(ConnectionPool)
+      redis.with do |conn|
+        data = conn.get(prefixed(sid))
+      end
+    else
+      data = redis.get(prefixed(sid))
+    end
     begin
       data ? decode(data) : nil
     rescue StandardError => e
@@ -116,16 +129,27 @@ class RedisSessionStore < ActionDispatch::Session::AbstractStore
 
   def set_session(env, sid, session_data, options = nil)
     expiry = (options || env.fetch(ENV_SESSION_OPTIONS_KEY))[:expire_after]
-    if expiry
-      redis.setex(prefixed(sid), expiry, encode(session_data))
+    if redis.is_a?(ConnectionPool)
+      redis.with do |conn|
+        if expiry
+          conn.setex(prefixed(sid), expiry, encode(session_data))
+        else
+          conn.set(prefixed(sid), encode(session_data))
+        end
+      end
     else
-      redis.set(prefixed(sid), encode(session_data))
+      if expiry
+        redis.setex(prefixed(sid), expiry, encode(session_data))
+      else
+        redis.set(prefixed(sid), encode(session_data))
+      end
     end
     return sid
   rescue Errno::ECONNREFUSED, Redis::CannotConnectError => e
     on_redis_down.call(e, env, sid) if on_redis_down
     return false
   end
+
   alias write_session set_session
 
   def encode(session_data)
@@ -135,18 +159,26 @@ class RedisSessionStore < ActionDispatch::Session::AbstractStore
   def destroy_session(env, sid, options)
     destroy_session_from_sid(sid, (options || {}).to_hash.merge(env: env))
   end
+
   alias delete_session destroy_session
 
   def destroy(env)
     if env['rack.request.cookie_hash'] &&
-       (sid = env['rack.request.cookie_hash'][key])
+        (sid = env['rack.request.cookie_hash'][key])
       destroy_session_from_sid(sid, drop: true, env: env)
     end
     false
   end
 
   def destroy_session_from_sid(sid, options = {})
-    redis.del(prefixed(sid))
+    if redis.is_a?(ConnectionPool)
+      redis.with do |conn|
+        conn.del(prefixed(sid))
+      end
+    else
+      redis.del(prefixed(sid))
+    end
+
     (options || {})[:drop] ? nil : generate_sid
   rescue Errno::ECONNREFUSED, Redis::CannotConnectError => e
     on_redis_down.call(e, options[:env] || {}, sid) if on_redis_down
@@ -155,10 +187,14 @@ class RedisSessionStore < ActionDispatch::Session::AbstractStore
   def determine_serializer(serializer)
     serializer ||= :marshal
     case serializer
-    when :marshal then Marshal
-    when :json    then JsonSerializer
-    when :hybrid  then HybridSerializer
-    else serializer
+      when :marshal then
+        Marshal
+      when :json then
+        JsonSerializer
+      when :hybrid then
+        HybridSerializer
+      else
+        serializer
     end
   end
 
