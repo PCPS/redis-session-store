@@ -7,6 +7,7 @@ Redis Session Store authors
 - Edwin Cruz
 - Gonçalo Silva
 - Ian C. Anderson
+- Jesse Doyle
 - Jorge Pardiñas
 - Justin McNally
 - Mathias Meyer
@@ -17,3 +18,7 @@ Redis Session Store authors
 - Todd Bealmear
 - Aleksey Dashkevych
 - Olle Jonsson
+- Nicolas Rodriguez
+- Sergey Nebolsin
+- Anton Kolodii
+- Peter Karman

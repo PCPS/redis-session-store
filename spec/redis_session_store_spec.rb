@@ -59,6 +59,29 @@ describe RedisSessionStore do
     end
   end
 
+  describe 'when configured with both :ttl and :expire_after' do
+    let(:ttl_seconds) { 60 * 120 }
+    let :options do
+      {
+        key: random_string,
+        secret: random_string,
+        redis: {
+          host: 'hosty.local',
+          port: 16_379,
+          db: 2,
+          key_prefix: 'myapp:session:',
+          ttl: ttl_seconds,
+          expire_after: nil
+        }
+      }
+    end
+
+    it 'assigns the :ttl option to @default_options' do
+      expect(default_options[:ttl]).to eq(ttl_seconds)
+      expect(default_options[:expire_after]).to be_nil
+    end
+  end
+
   describe 'when initializing with top-level redis options' do
     let :options do
       {
@@ -496,7 +519,7 @@ describe RedisSessionStore do
       end
 
       context 'when callable' do
-        let(:options) { { :"#{h}" => ->(*) { true } } }
+        let(:options) { { "#{h}": ->(*) { true } } }
 
         it 'does not explode at init' do
           expect { store }.to_not raise_error
@@ -504,7 +527,7 @@ describe RedisSessionStore do
       end
 
       context 'when not callable' do
-        let(:options) { { :"#{h}" => 'herpderp' } }
+        let(:options) { { "#{h}": 'herpderp' } }
 
         it 'explodes at init' do
           expect { store }.to raise_error(ArgumentError)

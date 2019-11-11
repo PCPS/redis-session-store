@@ -8,7 +8,6 @@ Gem::Specification.new do |gem|
   gem.homepage = 'https://github.com/roidrage/redis-session-store'
   gem.license = 'MIT'
 
-  gem.has_rdoc = true
   gem.extra_rdoc_files = %w(LICENSE AUTHORS.md CONTRIBUTING.md)
 
   gem.files = `git ls-files -z`.split("\x0")
@@ -17,10 +16,10 @@ Gem::Specification.new do |gem|
                     .match(/^  VERSION = '(.*)'/)[1]
 
   gem.add_runtime_dependency 'actionpack', '>= 3'
-  gem.add_runtime_dependency 'redis', '~> 3'
+  gem.add_runtime_dependency 'redis', '>= 3', '< 5'
 
   gem.add_development_dependency 'fakeredis', '~> 0.5'
-  gem.add_development_dependency 'rake', '~> 11'
+  gem.add_development_dependency 'rake', '~> 12'
   gem.add_development_dependency 'rspec', '~> 3'
   gem.add_development_dependency 'rubocop', '~> 0.41'
   gem.add_development_dependency 'simplecov', '~> 0.11'
